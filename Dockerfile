@@ -4,7 +4,7 @@ MAINTAINER Andy Cobaugh <andrew.cobaugh@gmail.com>
 
 COPY entrypoint.sh /entrypoint.sh
 RUN apk --update --no-cache --virtual=build-dependencies add curl ca-certificates tar && \
-	apk add --no-cache openldap && \
+	apk add --no-cache openldap openssl && \
 	apk del build-dependencies && \
 	chmod 755 /entrypoint.sh
 

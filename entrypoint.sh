@@ -19,13 +19,10 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 	fi
 
 	config_rootpw_hash=`slappasswd -s "${SLAPD_CONFIG_ROOTPW}"`
+	echo "$SLAPD_CONFIG_ROOTPW" > /slapd_config_rootpw
+	chmod 400 /slapd_config_rootpw
 
-	## TODO
-	# /ldap/schemas
-	# /ldap/config
-	# /ldap/pki
-
-	# schema
+	# builtin schema
 	cat <<-EOF >> /tmp/slapd.conf
 	include /etc/openldap/schema/core.schema
 	include /etc/openldap/schema/dyngroup.schema
@@ -38,13 +35,59 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 	include /etc/openldap/schema/misc.schema
 	include /etc/openldap/schema/nis.schema
 	EOF
-	
+
+	# user-provided schemas
 	if [ -d "/ldap/schemas" ]; then
 		for f in /ldap/schema/*.schema ; do
 			echo "Including custom schema $f"
 			echo "include $f" >> /tmp/slapd.conf
 		done
 	fi
+
+	CA_KEY=/ldap/pki/ca_key.pem
+	CA_EXPIRE=365
+	CA_CERT=/ldap/pki/ca_cert.pem
+	CA_SUBJECT="openldap-alpine-$(hostname)-CA"
+
+	SSL_SUBJECT="openldap-alpine-$(hostname)"
+	SSL_EXPIRE=365
+	SSL_KEY=/ldap/pki/key.pem
+	SSL_SIZE=2048
+	SSL_CERT=/ldap/pki/cert.pem
+	SSL_CSR=/ldap/pki/cert.csr
+	SSL_CONFIG=/ldap/pki/openssl.cnf
+
+	# user-provided tls certs
+	echo "Configuring PKI"
+	if [ ! -d "/ldap/pki" ] ; then
+		echo "No /ldap/pki directory, generating self-signed certs"
+		mkdir -p /ldap/pki
+		# CA
+		openssl genrsa -out ${CA_KEY} 2048
+		openssl req -x509 -new -nodes -key ${CA_KEY} -days ${CA_EXPIRE} -out ${CA_CERT} -subj "/CN=${CA_SUBJECT}"
+		
+		# server
+		cat > ${SSL_CONFIG} <<-EOF
+		[req]
+		req_extensions = v3_req
+		distinguished_name = req_distinguished_name
+		[req_distinguished_name]
+		[ v3_req ]
+		basicConstraints = CA:FALSE
+		keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+		extendedKeyUsage = clientAuth, serverAuth
+		EOF
+
+		openssl genrsa -out ${SSL_KEY} ${SSL_SIZE}
+		openssl req -new -key ${SSL_KEY} -out ${SSL_CSR} -subj "/CN=${SSL_SUBJECT}" -config ${SSL_CONFIG} 
+		openssl x509 -req -in ${SSL_CSR} -CA ${CA_CERT} -CAkey ${CA_KEY} -CAcreateserial -out ${SSL_CERT} \
+    			-days ${SSL_EXPIRE} -extensions v3_req -extfile ${SSL_CONFIG}
+	fi
+
+	echo "TLSCACertificateFile ${CA_CERT}" >> /tmp/slapd.conf
+	echo "TLSCertificateFile ${SSL_CERT}" >> /tmp/slapd.conf
+	echo "TLSCertificateKeyFile ${SSL_KEY}" >> /tmp/slapd.conf
+	echo "TLSCipherSuite HIGH:-SSLv2:-SSLv3" >> /tmp/slapd.conf
 
 	cat <<-EOF >> /tmp/slapd.conf
 	database config
@@ -58,4 +101,15 @@ fi
 
 chown -R ldap:ldap /etc/openldap/slapd.d/
 
-exec "$@"
+echo "Starting slapd with $@"
+exec "$@" &
+
+if [ -d /ldap/config ] ; then
+	echo "Adding custom config"
+	for f in /ldap/config/*.ldif ; do
+		echo "> $f"
+		ldapadd -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
+	done
+fi
+
+while true ; do sleep 300 ; done ;
