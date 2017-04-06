@@ -1,6 +1,6 @@
 #!/bin/sh
 
-set -e
+host=$(hostname)
 
 if [ ! -d /etc/openldap/slapd.d ]; then
 	echo "Configuring OpenLDAP via slapd.d"
@@ -19,7 +19,7 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 	fi
 
 	config_rootpw_hash=`slappasswd -s "${SLAPD_CONFIG_ROOTPW}"`
-	echo "$SLAPD_CONFIG_ROOTPW" > /slapd_config_rootpw
+	printf "$SLAPD_CONFIG_ROOTPW" > /slapd_config_rootpw
 	chmod 400 /slapd_config_rootpw
 
 	# builtin schema
@@ -47,9 +47,9 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 	CA_KEY=/ldap/pki/ca_key.pem
 	CA_EXPIRE=365
 	CA_CERT=/ldap/pki/ca_cert.pem
-	CA_SUBJECT="openldap-alpine-$(hostname)-CA"
+	CA_SUBJECT="openldap-alpine-${host}-CA"
 
-	SSL_SUBJECT="openldap-alpine-$(hostname)"
+	SSL_SUBJECT="openldap-alpine-${host}"
 	SSL_EXPIRE=365
 	SSL_KEY=/ldap/pki/key.pem
 	SSL_SIZE=2048
@@ -104,12 +104,25 @@ chown -R ldap:ldap /etc/openldap/slapd.d/
 echo "Starting slapd with $@"
 exec "$@" &
 
-if [ -d /ldap/config ] ; then
+# race condition, should change this so we loop until we can connect
+echo "Waiting for server to start"
+let i=0
+while [ $i -lt 60 ]; do
+	printf "."
+	ldapsearch -x -h localhost -s base -b '' >/dev/null 2>&1
+	test $? -eq 0 && break
+	sleep 1
+done
+echo
+
+if [ -d /ldap/ldif ] ; then
 	echo "Adding custom config"
-	for f in /ldap/config/*.ldif ; do
+	for f in /ldap/ldif/*.ldif ; do
 		echo "> $f"
-		ldapadd -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
+		ldapmodify -x -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
 	done
 fi
 
-while true ; do sleep 300 ; done ;
+echo READY
+
+while true ; do sleep 60 ; done ;
