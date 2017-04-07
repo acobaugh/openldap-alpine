@@ -3,6 +3,7 @@
 host=$(hostname)
 
 if [ ! -d /etc/openldap/slapd.d ]; then
+	FIRST_START=1
 	echo "Configuring OpenLDAP via slapd.d"
 	mkdir /etc/openldap/slapd.d
 	chmod 750 /etc/openldap/slapd.d
@@ -104,23 +105,25 @@ chown -R ldap:ldap /etc/openldap/slapd.d/
 echo "Starting slapd with $@"
 exec "$@" &
 
-# race condition, should change this so we loop until we can connect
-echo "Waiting for server to start"
-let i=0
-while [ $i -lt 60 ]; do
-	printf "."
-	ldapsearch -x -h localhost -s base -b '' >/dev/null 2>&1
-	test $? -eq 0 && break
-	sleep 1
-done
-echo
-
-if [ -d /ldap/ldif ] ; then
-	echo "Adding custom config"
-	for f in /ldap/ldif/*.ldif ; do
-		echo "> $f"
-		ldapmodify -x -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
+if [ $FIRST_START -eq 1 ] ; then
+	# handle race condition
+	echo "Waiting for server to start"
+	let i=0
+	while [ $i -lt 60 ]; do
+		printf "."
+		ldapsearch -x -h localhost -s base -b '' >/dev/null 2>&1
+		test $? -eq 0 && break
+		sleep 1
 	done
+	echo
+
+	if [ -d /ldap/ldif ] ; then
+		echo "Adding custom config"
+		for f in /ldap/ldif/*.ldif ; do
+			echo "> $f"
+			ldapmodify -x -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
+		done
+	fi
 fi
 
 echo READY
