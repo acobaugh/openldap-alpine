@@ -116,10 +116,15 @@ if [ $FIRST_START -eq 1 ] ; then
 		sleep 1
 	done
 	echo
+	echo "Adding additional config from /ldap/ldif/*.ldif"
+	for f in /ldap/ldif/*.ldif ; do
+		echo "> $f"
+		ldapmodify -x -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
+	done
 
-	if [ -d /ldap/ldif ] ; then
-		echo "Adding custom config"
-		for f in /ldap/ldif/*.ldif ; do
+	if [ -d /ldap/userldif ] ; then
+		echo "Adding user config from /ldap/userldif/*.ldif"
+		for f in /ldap/userldif/*.ldif ; do
 			echo "> $f"
 			ldapmodify -x -H ldap://localhost -y /slapd_config_rootpw -D ${SLAPD_CONFIG_ROOTDN} -f $f
 		done
