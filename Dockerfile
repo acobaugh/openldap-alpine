@@ -1,4 +1,4 @@
-FROM alpine:3.5
+FROM alpine:3.6
 
 MAINTAINER Andy Cobaugh <andrew.cobaugh@gmail.com>
 
@@ -13,5 +13,5 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
 ENTRYPOINT [ "/entrypoint.sh" ]
-CMD [ "/usr/sbin/slapd", "-h", "ldap:///", "-u", "ldap", "-g", "ldap", "-F", "/etc/openldap/slapd.d", "-d", "0" ]
+CMD [ "/usr/sbin/slapd", "-h", "ldap:/// ldaps:///", "-u", "ldap", "-g", "ldap", "-F", "/etc/openldap/slapd.d", "-d", "0" ]
  
