@@ -9,6 +9,7 @@ RUN apk --update --no-cache --virtual=build-dependencies add curl ca-certificate
 EXPOSE 389
 
 COPY ldif/ /ldap/ldif/
+COPY userldif/ /ldap/userldif/
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 
