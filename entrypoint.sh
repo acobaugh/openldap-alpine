@@ -39,7 +39,7 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 
 	# user-provided schemas
 	if [ -d "/ldap/schemas" ]; then
-		for f in /ldap/schema/*.schema ; do
+		for f in /ldap/schemas/*.schema ; do
 			echo "Including custom schema $f"
 			echo "include $f" >> /tmp/slapd.conf
 		done
