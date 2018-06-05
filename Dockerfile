@@ -4,11 +4,15 @@ MAINTAINER Andy Cobaugh <andrew.cobaugh@gmail.com>
 
 RUN apk --update --no-cache --virtual=build-dependencies add curl ca-certificates tar && \
 	apk add --no-cache openldap openldap-clients openldap-back-monitor openssl && \
-	apk del build-dependencies && mkdir -p /ldap/ldif
+	apk del build-dependencies && mkdir -p /ldap/ldif && mkdir -p /ldap/userldif && \
+	mkdir -p /ldap/schemas
 
 EXPOSE 389
 
 COPY ldif/ /ldap/ldif/
+COPY userldif/ /ldap/userldif/
+COPY schemas/ /ldap/schemas/
+
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod 755 /entrypoint.sh
 

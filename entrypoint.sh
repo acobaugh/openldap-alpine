@@ -7,12 +7,12 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 	echo "Configuring OpenLDAP via slapd.d"
 	mkdir /etc/openldap/slapd.d
 	chmod 750 /etc/openldap/slapd.d
-	echo "SLAPD_CONFIG_ROOTDN = $SLAPD_CONFIG_ROOTDN"
 	if [ -z "$SLAPD_CONFIG_ROOTDN" ]; then
 		echo -n >&2 "Error: SLAPD_CONFIG_ROOTDN not set. "
 		echo >&2 "Did you forget to add -e SLAPD_CONFIG_ROOTDN=... ?"
 		exit 1
 	fi
+	echo "SLAPD_CONFIG_ROOTDN = $SLAPD_CONFIG_ROOTDN"
 	if [ -z "$SLAPD_CONFIG_ROOTPW" ]; then
 		echo -n >&2 "Error: SLAPD_CONFIG_ROOTPW not set. "
 		echo >&2 "Did you forget to add -e SLAPD_CONFIG_ROOTPW=... ?"
@@ -39,7 +39,7 @@ if [ ! -d /etc/openldap/slapd.d ]; then
 
 	# user-provided schemas
 	if [ -d "/ldap/schemas" ]; then
-		for f in /ldap/schema/*.schema ; do
+		for f in /ldap/schemas/*.schema ; do
 			echo "Including custom schema $f"
 			echo "include $f" >> /tmp/slapd.conf
 		done
